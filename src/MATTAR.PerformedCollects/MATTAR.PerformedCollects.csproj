@@ -4,9 +4,9 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <AssemblyName>MATTAR.PerformedCollects</AssemblyName>
-    <RootNamespace>MATTAR.PerformedCollects</RootNamespace>
-    <PackageId>MATTAR.PerformedCollects</PackageId>
+    <AssemblyName>MATTAR.PerformanceCollections</AssemblyName>
+    <RootNamespace>MATTAR.PerformanceCollections</RootNamespace>
+    <PackageId>MATTAR.PerformanceCollections</PackageId>
     <Version>1.0.0</Version>
     <Authors>mattar-shadi</Authors>
     <Description>High-performance native collections for .NET: Cuckoo hash table, perfect hash table, and van Emde Boas tree.</Description>

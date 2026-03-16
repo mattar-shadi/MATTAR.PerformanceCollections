@@ -74,7 +74,7 @@ public sealed unsafe class SafeVanEmdeBoas : IEnumerable<int>, IDisposable
     /// Enumerator that iterates over every element in a <see cref="VanEmdeBoas"/> tree
     /// in ascending order by repeatedly calling <see cref="VanEmdeBoas.Successor"/>.
     /// </summary>
-    public sealed unsafe class SafeVanEmdeBoasEnumerator : IEnumerator<int>
+    internal sealed unsafe class SafeVanEmdeBoasEnumerator : IEnumerator<int>
     {
         private readonly VanEmdeBoas* _tree;
         private int _current;

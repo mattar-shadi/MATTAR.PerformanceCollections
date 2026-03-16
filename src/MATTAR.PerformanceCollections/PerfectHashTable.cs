@@ -1,21 +1,21 @@
-using System;
+8using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 [StructLayout(LayoutKind.Sequential)]
-public unsafe struct PerfectHashTable
+internal unsafe struct PerfectHashTable
 {
-    public int N;
-    public int TableSize;
-    public Bucket* Buckets;
+    internal int N;
+    internal int TableSize;
+    internal Bucket* Buckets;
 
-    public ulong HashA;
-    public ulong HashB;
-    public int HashShift;
+    internal ulong HashA;
+    internal ulong HashB;
+    internal int HashShift;
 
     [StructLayout(LayoutKind.Sequential)]
-    public struct Bucket
+    internal struct Bucket
     {
         public int Count;
         public int SubTableSize;
@@ -26,14 +26,14 @@ public unsafe struct PerfectHashTable
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    public struct Entry
+    internal struct Entry
     {
-        public int Key;
-        public int Value;
-        public void* Data;
+        internal int Key;
+        internal int Value;
+        internal void* Data;
     }
 
-    public static PerfectHashTable* Create(int[] keys, int[] values, void** data = null)
+    internal static PerfectHashTable* Create(int[] keys, int[] values, void** data = null)
     {
         int n = keys.Length;
         if (n == 0) return null;
@@ -89,11 +89,11 @@ public unsafe struct PerfectHashTable
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private int Hash1(int key) =>
+    internal int Hash1(int key) =>
         (int)(((HashA * (ulong)key + HashB) >> HashShift) & ((ulong)TableSize - 1));
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static int Hash2(in Bucket bucket, int key) =>
+    internal static int Hash2(in Bucket bucket, int key) =>
         bucket.SubTableSize == 0 ? -1 :
         (int)(((bucket.SubHashA * (ulong)key + bucket.SubHashB) >> bucket.SubHashShift) & ((ulong)bucket.SubTableSize - 1));
 
@@ -113,7 +113,7 @@ public unsafe struct PerfectHashTable
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Entry* Find(PerfectHashTable* table, int key)
+    internal static Entry* Find(PerfectHashTable* table, int key)
     {
         if (table == null) return null;
         int h1 = table->Hash1(key);
@@ -125,7 +125,7 @@ public unsafe struct PerfectHashTable
         return e->Key == key ? e : null;
     }
 
-    public static void Destroy(PerfectHashTable* table)
+    internal static void Destroy(PerfectHashTable* table)
     {
         if (table == null) return;
         for (int i = 0; i < table->TableSize; i++)

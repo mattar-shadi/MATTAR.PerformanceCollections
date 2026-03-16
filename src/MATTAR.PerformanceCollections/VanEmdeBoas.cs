@@ -1,30 +1,30 @@
 using System;
 using System.Runtime.CompilerServices;
 
-public unsafe struct VanEmdeBoas
+internal unsafe struct VanEmdeBoas
 {
-    public int UniverseBits;
-    public int ClusterBits;
-    public int Min;
-    public int Max;
+    internal int UniverseBits;
+    internal int ClusterBits;
+    internal int Min;
+    internal int Max;
 
-    public bool UseCuckoo;
-    public CuckooHashTable* CuckooTable;
-    public PerfectHashTable* PerfectTable;
+    internal bool UseCuckoo;
+    internal CuckooHashTable* CuckooTable;
+    internal PerfectHashTable* PerfectTable;
 
-    public VanEmdeBoas* Summary;
+    internal VanEmdeBoas* Summary;
 
-    public const int MIN_BITS = 2;
-    public const int MAX_UNIVERSE_BITS = 30;
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static int High(VanEmdeBoas* v, int x) => x >> v->ClusterBits;
+    internal const int MIN_BITS = 2;
+    internal const int MAX_UNIVERSE_BITS = 30;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static int Low(VanEmdeBoas* v, int x) => x & ((1 << v->ClusterBits) - 1);
+    internal static int High(VanEmdeBoas* v, int x) => x >> v->ClusterBits;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static int Index(VanEmdeBoas* v, int high, int low)
+    internal static int Low(VanEmdeBoas* v, int x) => x & ((1 << v->ClusterBits) - 1);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static int Index(VanEmdeBoas* v, int high, int low)
     {
         int result = (high << v->ClusterBits) | low;
         if (result >= (1 << v->UniverseBits) || result < 0)
@@ -32,7 +32,7 @@ public unsafe struct VanEmdeBoas
         return result;
     }
 
-    public static VanEmdeBoas* Create(int universeBits, bool useCuckoo = true, int[]? presetKeys = null)
+    internal static VanEmdeBoas* Create(int universeBits, bool useCuckoo = true, int[]? presetKeys = null)
     {
         if (universeBits > MAX_UNIVERSE_BITS)
             throw new ArgumentException($"Universe too large (max 2^{MAX_UNIVERSE_BITS})", nameof(universeBits));
@@ -63,7 +63,7 @@ public unsafe struct VanEmdeBoas
         return v;
     }
 
-    public static void Insert(VanEmdeBoas* v, int key)
+    internal static void Insert(VanEmdeBoas* v, int key)
     {
         if (key < 0 || key >= (1 << v->UniverseBits))
             throw new ArgumentOutOfRangeException(nameof(key));
@@ -120,7 +120,7 @@ public unsafe struct VanEmdeBoas
         if (key > v->Max) v->Max = key;
     }
 
-    public static int Successor(VanEmdeBoas* v, int x)
+    internal static int Successor(VanEmdeBoas* v, int x)
     {
         if (v == null || v->Min == -1) return -1;
         if (x < v->Min) return v->Min;
@@ -161,7 +161,7 @@ public unsafe struct VanEmdeBoas
         return Index(v, succHi, next->Min);
     }
 
-    public static void Destroy(VanEmdeBoas* v)
+    internal static void Destroy(VanEmdeBoas* v)
     {
         if (v == null) return;
 

@@ -55,6 +55,7 @@ public unsafe struct PerfectHashTable
             counts[table->Hash1(keys[i])]++;
 
         table->Buckets = (Bucket*)NativeHelpers.AlignedAlloc((nuint)(sizeof(Bucket) * table->TableSize));
+        NativeHelpers.Clear(table->Buckets, (nuint)(sizeof(Bucket) * table->TableSize));
 
         for (int i = 0; i < table->TableSize; i++)
         {
@@ -66,22 +67,37 @@ public unsafe struct PerfectHashTable
             NativeHelpers.Clear(b.SubTable, (nuint)(sizeof(Entry) * b.SubTableSize));
         }
 
-        for (int i = 0; i < n; i++)
+        // Insert keys bucket by bucket: retry all keys in a bucket together on collision.
+        for (int bi = 0; bi < table->TableSize; bi++)
         {
-            int k = keys[i];
-            int h1 = table->Hash1(k);
-            ref Bucket bucket = ref table->Buckets[h1];
+            ref Bucket bucket = ref table->Buckets[bi];
+            if (bucket.Count == 0) continue;
 
             int attempts = 0;
-            while (!TryInsert(ref bucket, k, values[i], data != null ? data[i] : null))
+            bool placed = false;
+            while (!placed)
             {
-                if (++attempts > 300)
-                    throw new InvalidOperationException($"Cannot build perfect hash - bucket {h1} after {attempts} tries");
+                if (attempts > 0)
+                {
+                    if (attempts > 300)
+                        throw new InvalidOperationException($"Cannot build perfect hash - bucket {bi} after {attempts} tries");
+                    bucket.SubHashA = NativeHelpers.RandomOddULong();
+                    bucket.SubHashB = NativeHelpers.RandomULong();
+                    bucket.SubHashShift = 64 - NativeHelpers.Log2((uint)bucket.SubTableSize);
+                    NativeHelpers.Clear(bucket.SubTable, (nuint)(sizeof(Entry) * bucket.SubTableSize));
+                }
+                attempts++;
 
-                bucket.SubHashA = NativeHelpers.RandomOddULong();
-                bucket.SubHashB = NativeHelpers.RandomULong();
-                bucket.SubHashShift = 64 - NativeHelpers.Log2((uint)bucket.SubTableSize);
-                NativeHelpers.Clear(bucket.SubTable, (nuint)(sizeof(Entry) * bucket.SubTableSize));
+                placed = true;
+                for (int i = 0; i < n; i++)
+                {
+                    if (table->Hash1(keys[i]) != bi) continue;
+                    if (!TryInsert(ref bucket, keys[i], values[i], data != null ? data[i] : null))
+                    {
+                        placed = false;
+                        break;
+                    }
+                }
             }
         }
 

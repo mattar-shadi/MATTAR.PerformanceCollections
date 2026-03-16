@@ -57,7 +57,7 @@ public unsafe struct VanEmdeBoas
             }
             // PerfectTable laissé null → à construire après si besoin
 
-            v->Summary = Create(v->ClusterBits, useCuckoo);
+            v->Summary = Create(v->UniverseBits - v->ClusterBits, useCuckoo);
         }
 
         return v;
@@ -75,7 +75,7 @@ public unsafe struct VanEmdeBoas
         }
 
         if (key < v->Min) (v->Min, key) = (key, v->Min);
-        if (key == v->Max) return;
+        else if (key == v->Min) return;
 
         if (v->UniverseBits <= MIN_BITS)
         {
@@ -88,28 +88,20 @@ public unsafe struct VanEmdeBoas
 
         if (v->UseCuckoo)
         {
-            var entry = CuckooHashTable.Find(v->CuckooTable, hi);
+            var entry = CuckooHashTable.Find(v->CuckooTable, hi + 1);
             VanEmdeBoas* cluster;
 
             if (entry == null)
             {
                 cluster = Create(v->ClusterBits, true);
                 cluster->Min = cluster->Max = lo;
-                CuckooHashTable.Insert(v->CuckooTable, hi, 0, cluster);
+                CuckooHashTable.Insert(v->CuckooTable, hi + 1, 0, cluster);
                 Insert(v->Summary, hi);
             }
             else
             {
                 cluster = (VanEmdeBoas*)entry->Data;
-                if (cluster->Min == -1)
-                {
-                    cluster->Min = cluster->Max = lo;
-                    Insert(v->Summary, hi);
-                }
-                else
-                {
-                    Insert(cluster, lo);
-                }
+                Insert(cluster, lo);
             }
         }
         else
@@ -137,7 +129,7 @@ public unsafe struct VanEmdeBoas
         VanEmdeBoas* cluster = null;
         if (v->UseCuckoo)
         {
-            var e = CuckooHashTable.Find(v->CuckooTable, hi);
+            var e = CuckooHashTable.Find(v->CuckooTable, hi + 1);
             if (e != null) cluster = (VanEmdeBoas*)e->Data;
         }
 
@@ -153,7 +145,7 @@ public unsafe struct VanEmdeBoas
         VanEmdeBoas* next = null;
         if (v->UseCuckoo)
         {
-            var e = CuckooHashTable.Find(v->CuckooTable, succHi);
+            var e = CuckooHashTable.Find(v->CuckooTable, succHi + 1);
             if (e != null) next = (VanEmdeBoas*)e->Data;
         }
 

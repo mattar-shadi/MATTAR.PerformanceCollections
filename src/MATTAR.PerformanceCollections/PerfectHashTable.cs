@@ -17,12 +17,12 @@ internal unsafe struct PerfectHashTable
     [StructLayout(LayoutKind.Sequential)]
     internal struct Bucket
     {
-        public int Count;
-        public int SubTableSize;
+        internal int Count;
+        internal int SubTableSize;
         public Entry* SubTable;
-        public ulong SubHashA;
-        public ulong SubHashB;
-        public int SubHashShift;
+        internal ulong SubHashA;
+        internal ulong SubHashB;
+        internal int SubHashShift;
     }
 
     [StructLayout(LayoutKind.Sequential)]

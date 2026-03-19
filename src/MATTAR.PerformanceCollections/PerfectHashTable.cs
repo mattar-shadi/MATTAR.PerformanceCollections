@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -13,6 +14,9 @@ internal unsafe struct PerfectHashTable
     internal ulong HashA;
     internal ulong HashB;
     internal int HashShift;
+
+    private const int MaxAttemptsBeforeGrowth = 100;
+    private const int MaxSubTableSize = 1 << 20;
 
     [StructLayout(LayoutKind.Sequential)]
     internal struct Bucket
@@ -38,6 +42,12 @@ internal unsafe struct PerfectHashTable
         int n = keys.Length;
         if (n == 0) return null;
 
+        // Detect duplicate keys early.
+        var seen = new HashSet<int>(n);
+        for (int i = 0; i < n; i++)
+            if (!seen.Add(keys[i]))
+                throw new ArgumentException($"Duplicate key {keys[i]}");
+
         int tableSize = NativeHelpers.NextPowerOfTwo(Math.Max(1, n));
 
         var table = (PerfectHashTable*)NativeHelpers.AlignedAlloc((nuint)sizeof(PerfectHashTable));
@@ -47,41 +57,90 @@ internal unsafe struct PerfectHashTable
             TableSize = tableSize,
             HashA = NativeHelpers.RandomOddULong(),
             HashB = NativeHelpers.RandomULong(),
-            HashShift = 64 - NativeHelpers.Log2((uint)tableSize)
+            HashShift = tableSize == 1 ? 0 : 64 - NativeHelpers.Log2((uint)tableSize)
         };
 
-        int* counts = stackalloc int[table->TableSize];
-        for (int i = 0; i < n; i++)
-            counts[table->Hash1(keys[i])]++;
-
+        // Bucket array must be zero-initialised so that empty buckets have null SubTable.
         table->Buckets = (Bucket*)NativeHelpers.AlignedAlloc((nuint)(sizeof(Bucket) * table->TableSize));
+        NativeHelpers.Clear(table->Buckets, (nuint)(sizeof(Bucket) * table->TableSize));
 
-        for (int i = 0; i < table->TableSize; i++)
+        // Assign each key to a first-level bucket and count occupancy.
+        int[] bucketOf = new int[n];
+        int[] counts = new int[tableSize];
+        for (int i = 0; i < n; i++)
         {
-            if (counts[i] == 0) continue;
-            ref Bucket b = ref table->Buckets[i];
-            b.Count = counts[i];
-            b.SubTableSize = counts[i] <= 3 ? 4 : counts[i] * counts[i];
-            b.SubTable = (Entry*)NativeHelpers.AlignedAlloc((nuint)(sizeof(Entry) * b.SubTableSize));
-            NativeHelpers.Clear(b.SubTable, (nuint)(sizeof(Entry) * b.SubTableSize));
+            int h1 = table->Hash1(keys[i]);
+            bucketOf[i] = h1;
+            counts[h1]++;
         }
 
-        for (int i = 0; i < n; i++)
+        // Allocate sub-tables for non-empty buckets.
+        for (int b = 0; b < tableSize; b++)
         {
-            int k = keys[i];
-            int h1 = table->Hash1(k);
-            ref Bucket bucket = ref table->Buckets[h1];
+            if (counts[b] == 0) continue;
+            int count = counts[b];
+            ref Bucket bucket = ref table->Buckets[b];
+            bucket.Count = count;
+            int subSize = count <= 3 ? 4 : count * count;
+            bucket.SubTableSize = subSize;
+            bucket.SubTable = (Entry*)NativeHelpers.AlignedAlloc((nuint)(sizeof(Entry) * subSize));
+            NativeHelpers.Clear(bucket.SubTable, (nuint)(sizeof(Entry) * subSize));
+        }
+
+        // Group key indices by bucket so each bucket can be built atomically.
+        int[][] bucketIndices = new int[tableSize][];
+        for (int b = 0; b < tableSize; b++)
+            if (counts[b] > 0)
+                bucketIndices[b] = new int[counts[b]];
+
+        int[] fillPos = new int[tableSize];
+        for (int i = 0; i < n; i++)
+            bucketIndices[bucketOf[i]][fillPos[bucketOf[i]]++] = i;
+
+        // Build each bucket: find hash params that place all bucket keys without collision.
+        for (int b = 0; b < tableSize; b++)
+        {
+            if (counts[b] == 0) continue;
+            ref Bucket bucket = ref table->Buckets[b];
+            int[] indices = bucketIndices[b];
+
+            bucket.SubHashA = NativeHelpers.RandomOddULong();
+            bucket.SubHashB = NativeHelpers.RandomULong();
+            bucket.SubHashShift = bucket.SubTableSize == 1 ? 0 : 64 - NativeHelpers.Log2((uint)bucket.SubTableSize);
 
             int attempts = 0;
-            while (!TryInsert(ref bucket, k, values[i], data != null ? data[i] : null))
+            while (true)
             {
-                if (++attempts > 300)
-                    throw new InvalidOperationException($"Cannot build perfect hash - bucket {h1} after {attempts} tries");
+                NativeHelpers.Clear(bucket.SubTable, (nuint)(sizeof(Entry) * bucket.SubTableSize));
+
+                bool ok = true;
+                for (int j = 0; j < indices.Length; j++)
+                {
+                    int idx = indices[j];
+                    if (!TryInsert(ref bucket, keys[idx], values[idx], data != null ? data[idx] : null))
+                    {
+                        ok = false;
+                        break;
+                    }
+                }
+                if (ok) break;
+
+                if (++attempts > MaxAttemptsBeforeGrowth)
+                {
+                    // Fallback: grow the sub-table to reduce collision probability.
+                    int newSize = NativeHelpers.NextPowerOfTwo(bucket.SubTableSize * 2);
+                    if (newSize > MaxSubTableSize)
+                        throw new InvalidOperationException($"Cannot build perfect hash - bucket {b} exceeds maximum sub-table size");
+                    NativeHelpers.AlignedFree(bucket.SubTable);
+                    bucket.SubTableSize = newSize;
+                    bucket.SubTable = (Entry*)NativeHelpers.AlignedAlloc((nuint)(sizeof(Entry) * newSize));
+                    NativeHelpers.Clear(bucket.SubTable, (nuint)(sizeof(Entry) * newSize));
+                    attempts = 0;
+                }
 
                 bucket.SubHashA = NativeHelpers.RandomOddULong();
                 bucket.SubHashB = NativeHelpers.RandomULong();
-                bucket.SubHashShift = 64 - NativeHelpers.Log2((uint)bucket.SubTableSize);
-                NativeHelpers.Clear(bucket.SubTable, (nuint)(sizeof(Entry) * bucket.SubTableSize));
+                bucket.SubHashShift = bucket.SubTableSize == 1 ? 0 : 64 - NativeHelpers.Log2((uint)bucket.SubTableSize);
             }
         }
 

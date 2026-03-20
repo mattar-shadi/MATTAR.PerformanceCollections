@@ -1,0 +1,76 @@
+name: Pack NuGet
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Package version (e.g. 1.2.3). Leave empty to use the version defined in the .csproj.'
+        required: false
+        default: ''
+      skip-tests:
+        description: 'Skip running tests before packing'
+        type: boolean
+        required: false
+        default: false
+
+jobs:
+  pack:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore MATTAR.PerformanceCollections.slnx
+
+      - name: Build
+        run: dotnet build MATTAR.PerformanceCollections.slnx --no-restore --configuration Release
+
+      - name: Test
+        if: inputs.skip-tests == false
+        run: >
+          dotnet test
+          tests/MATTAR.PerformanceCollections.Tests/MATTAR.PerformanceCollections.Tests.csproj
+          --no-build
+          --configuration Release
+          --verbosity normal
+
+      - name: Set version argument
+        id: version-arg
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            echo "value=-p:PackageVersion=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Pack
+        run: >
+          dotnet pack
+          src/MATTAR.PerformanceCollections/MATTAR.PerformanceCollections.csproj
+          --no-build
+          --configuration Release
+          --include-symbols
+          --output artifacts/
+          ${{ steps['version-arg'].outputs.value }}
+
+      - name: Upload NuGet packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-packages
+          path: artifacts/*.nupkg
+
+      - name: Upload symbol packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-symbol-packages
+          path: artifacts/*.snupkg
+          if-no-files-found: ignore

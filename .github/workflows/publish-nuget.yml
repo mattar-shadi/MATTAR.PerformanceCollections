@@ -1,0 +1,92 @@
+name: Publish NuGet
+
+# IMPORTANT: Before this workflow can successfully publish, you must add a repository secret
+# named NUGET_API_KEY in Settings → Secrets and variables → Actions with your nuget.org API key.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Package version (e.g. 1.2.3). Leave empty to use the version defined in the .csproj.'
+        required: false
+        default: ''
+      skip-tests:
+        description: 'Skip running tests before publishing'
+        type: boolean
+        required: false
+        default: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore MATTAR.PerformanceCollections.slnx
+
+      - name: Build
+        run: dotnet build MATTAR.PerformanceCollections.slnx --no-restore --configuration Release
+
+      - name: Test
+        if: inputs.skip-tests != true
+        run: >
+          dotnet test
+          tests/MATTAR.PerformanceCollections.Tests/MATTAR.PerformanceCollections.Tests.csproj
+          --no-build
+          --configuration Release
+          --verbosity normal
+
+      - name: Set version argument
+        id: version-arg
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            echo "value=-p:PackageVersion=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "release" ]; then
+            TAG="${{ github.event.release.tag_name }}"
+            VERSION="${TAG#v}"
+            echo "value=-p:PackageVersion=${VERSION}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Pack
+        run: >
+          dotnet pack
+          src/MATTAR.PerformanceCollections/MATTAR.PerformanceCollections.csproj
+          --no-build
+          --configuration Release
+          --include-symbols
+          --output artifacts/
+          ${{ steps['version-arg'].outputs.value }}
+
+      - name: Publish to nuget.org
+        run: >
+          dotnet nuget push artifacts/*.nupkg
+          --api-key ${{ secrets.NUGET_API_KEY }}
+          --source https://api.nuget.org/v3/index.json
+          --skip-duplicate
+
+      - name: Upload NuGet packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-packages
+          path: artifacts/*.nupkg
+
+      - name: Upload symbol packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-symbol-packages
+          path: artifacts/*.snupkg
+          if-no-files-found: ignore

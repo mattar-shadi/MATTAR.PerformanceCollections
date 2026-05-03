@@ -13,7 +13,7 @@ internal unsafe struct UnSafeVanEmdeBoas
     internal bool UseCuckoo;
     internal CuckooHashTable* CuckooTable;
 #pragma warning disable CS0649 // Field is never assigned to (PerfectTable path is reserved for future use)
-    internal PerfectHashTable* PerfectTable;
+    internal UnSafePerfectHashTable* PerfectTable;
 #pragma warning restore CS0649
 
     internal UnSafeVanEmdeBoas* Summary;
@@ -76,7 +76,7 @@ internal unsafe struct UnSafeVanEmdeBoas
 
     /// <summary>
     /// Recursively builds a static VEB tree from a sorted, deduplicated set of keys.
-    /// Clusters are indexed via PerfectHashTable using stored key = hi + 1 to avoid the
+    /// Clusters are indexed via UnSafePerfectHashTable using stored key = hi + 1 to avoid the
     /// Key == 0 empty-slot sentinel.
     /// </summary>
     private static UnSafeVanEmdeBoas* CreateStatic(int universeBits, int[] keys)
@@ -124,7 +124,7 @@ internal unsafe struct UnSafeVanEmdeBoas
         // Build one cluster per unique hi value.
         int numClusters = groups.Count;
         var storedKeys = new int[numClusters]; // hi + 1 to dodge the Key == 0 sentinel
-        var values     = new int[numClusters]; // unused; required by PerfectHashTable.Create
+        var values     = new int[numClusters]; // unused; required by UnSafePerfectHashTable.Create
         var clusterPtrs = new void*[numClusters];
 
         int idx = 0;
@@ -136,10 +136,10 @@ internal unsafe struct UnSafeVanEmdeBoas
             idx++;
         }
 
-        // Build PerfectHashTable mapping (hi + 1) → cluster pointer.
+        // Build UnSafePerfectHashTable mapping (hi + 1) → cluster pointer.
         fixed (void** dataPtr = clusterPtrs)
         {
-            v->PerfectTable = PerfectHashTable.Create(storedKeys, values, dataPtr);
+            v->PerfectTable = UnSafePerfectHashTable.Create(storedKeys, values, dataPtr);
         }
 
         // Build Summary: static VEB containing the hi values of all non-empty clusters.
@@ -229,7 +229,7 @@ internal unsafe struct UnSafeVanEmdeBoas
         }
         else
         {
-            var e = PerfectHashTable.Find(v->PerfectTable, hi + 1);
+            var e = UnSafePerfectHashTable.Find(v->PerfectTable, hi + 1);
             if (e != null) cluster = (UnSafeVanEmdeBoas*)e->Data;
         }
 
@@ -250,7 +250,7 @@ internal unsafe struct UnSafeVanEmdeBoas
         }
         else
         {
-            var e = PerfectHashTable.Find(v->PerfectTable, succHi + 1);
+            var e = UnSafePerfectHashTable.Find(v->PerfectTable, succHi + 1);
             if (e != null) next = (UnSafeVanEmdeBoas*)e->Data;
         }
 
@@ -299,7 +299,7 @@ internal unsafe struct UnSafeVanEmdeBoas
                         }
                     }
                 }
-                PerfectHashTable.Destroy(v->PerfectTable);
+                UnSafePerfectHashTable.Destroy(v->PerfectTable);
             }
 
             Destroy(v->Summary);

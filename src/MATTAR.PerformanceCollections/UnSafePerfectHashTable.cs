@@ -5,7 +5,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 [StructLayout(LayoutKind.Sequential)]
-internal unsafe struct PerfectHashTable
+internal unsafe struct UnSafePerfectHashTable
 {
     internal int N;
     internal int TableSize;
@@ -37,7 +37,7 @@ internal unsafe struct PerfectHashTable
         internal void* Data;
     }
 
-    internal static PerfectHashTable* Create(int[] keys, int[] values, void** data = null)
+    internal static UnSafePerfectHashTable* Create(int[] keys, int[] values, void** data = null)
     {
         int n = keys.Length;
         if (n == 0) return null;
@@ -58,8 +58,8 @@ internal unsafe struct PerfectHashTable
 
         int tableSize = NativeHelpers.NextPowerOfTwo(Math.Max(1, n));
 
-        var table = (PerfectHashTable*)NativeHelpers.AlignedAlloc((nuint)sizeof(PerfectHashTable));
-        *table = new PerfectHashTable
+        var table = (UnSafePerfectHashTable*)NativeHelpers.AlignedAlloc((nuint)sizeof(UnSafePerfectHashTable));
+        *table = new UnSafePerfectHashTable
         {
             N = n,
             TableSize = tableSize,
@@ -195,7 +195,7 @@ internal unsafe struct PerfectHashTable
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static Entry* Find(PerfectHashTable* table, int key)
+    internal static Entry* Find(UnSafePerfectHashTable* table, int key)
     {
         if (table == null) return null;
         int h1 = table->Hash1(key);
@@ -207,7 +207,7 @@ internal unsafe struct PerfectHashTable
         return e->Key == key ? e : null;
     }
 
-    internal static void Destroy(PerfectHashTable* table)
+    internal static void Destroy(UnSafePerfectHashTable* table)
     {
         if (table == null) return;
         if (table->Buckets != null)

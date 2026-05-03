@@ -27,7 +27,7 @@ public sealed class VanEmdeBoas : IVanEmdeBoas
 
     /// <summary>
     /// Creates a static VEB tree pre-loaded with the given <paramref name="keys"/> using
-    /// <see cref="PerfectHashTable"/> instead of <see cref="CuckooHashTable"/> for cluster lookup.
+    /// <see cref="UnSafePerfectHashTable"/> instead of <see cref="CuckooHashTable"/> for cluster lookup.
     /// The tree is <b>immutable</b> after construction; calling <see cref="Insert"/> will throw
     /// <see cref="InvalidOperationException"/>.
     /// </summary>

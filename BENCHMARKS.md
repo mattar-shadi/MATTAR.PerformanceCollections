@@ -10,7 +10,7 @@ This document explains how to run the comparative benchmarks that measure the pe
 |---|---|---|
 | `CuckooHashTable` | `Dictionary<int, int>` | Dynamic (insertions, lookups, deletes) |
 | `CuckooHashTable` | `HashSet<int>` | Set (key-only, value unused) |
-| `PerfectHashTable` | `Dictionary<int, int>` | Static (construction + lookups only; no inserts/deletes after build) |
+| `UnSafePerfectHashTable` | `Dictionary<int, int>` | Static (construction + lookups only; no inserts/deletes after build) |
 
 ---
 
@@ -35,7 +35,7 @@ dotnet run -c Release --project benchmarks/MATTAR.PerformanceCollections.Benchma
 # Only the CuckooHashTable vs HashSet benchmarks
 dotnet run -c Release --project benchmarks/MATTAR.PerformanceCollections.Benchmarks -- --filter *CuckooVsHashSet*
 
-# Only the PerfectHashTable vs Dictionary benchmarks
+# Only the UnSafePerfectHashTable vs Dictionary benchmarks
 dotnet run -c Release --project benchmarks/MATTAR.PerformanceCollections.Benchmarks -- --filter *PerfectVsDictionary*
 ```
 
@@ -88,14 +88,14 @@ Compares **CuckooHashTable used as a set** against `HashSet<int>`.
 
 ### `PerfectVsDictionaryBenchmarks`
 
-Compares **PerfectHashTable** (static FKS perfect hash, key→value) against `Dictionary<int, int>`. Because `PerfectHashTable` is immutable after construction, there is no `Remove` benchmark.
+Compares **UnSafePerfectHashTable** (static FKS perfect hash, key→value) against `Dictionary<int, int>`. Because `UnSafePerfectHashTable` is immutable after construction, there is no `Remove` benchmark.
 
 | Method | Description |
 |---|---|
-| `Dictionary_Build` / `PerfectHashTable_Build` | Build the entire table from N key-value pairs |
-| `Dictionary_TryGetValue` / `PerfectHashTable_Find` | Look up all N keys and accumulate values |
-| `Dictionary_ContainsKey` / `PerfectHashTable_ContainsKey` | Test membership for all N keys |
-| `Dictionary_Iterate` / `PerfectHashTable_Iterate` | Iterate over all entries |
+| `Dictionary_Build` / `UnSafePerfectHashTable_Build` | Build the entire table from N key-value pairs |
+| `Dictionary_TryGetValue` / `UnSafePerfectHashTable_Find` | Look up all N keys and accumulate values |
+| `Dictionary_ContainsKey` / `UnSafePerfectHashTable_ContainsKey` | Test membership for all N keys |
+| `Dictionary_Iterate` / `UnSafePerfectHashTable_Iterate` | Iterate over all entries |
 
 ---
 
@@ -116,7 +116,7 @@ All benchmarks include `[MemoryDiagnoser]`, which reports:
 | `Allocated` | Total managed heap bytes allocated during the benchmark (GC pressure) |
 | `Gen0` / `Gen1` / `Gen2` | GC collection counts |
 
-`CuckooHashTable` and `PerfectHashTable` allocate native memory directly via `NativeMemory` and do not generate GC pressure for the table storage itself, so their `Allocated` values will be significantly lower than their `Dictionary` / `HashSet` counterparts.
+`CuckooHashTable` and `UnSafePerfectHashTable` allocate native memory directly via `NativeMemory` and do not generate GC pressure for the table storage itself, so their `Allocated` values will be significantly lower than their `Dictionary` / `HashSet` counterparts.
 
 ---
 
@@ -139,6 +139,6 @@ BenchmarkDotNet outputs a table like:
 
 ## Key constraints
 
-- `CuckooHashTable` and `PerfectHashTable` use **key 0 as an empty-slot sentinel**; keys start at 1 in all benchmarks.
-- `PerfectHashTable` is **immutable** after `Create`; Insert and Delete are not available after construction.
+- `CuckooHashTable` and `UnSafePerfectHashTable` use **key 0 as an empty-slot sentinel**; keys start at 1 in all benchmarks.
+- `UnSafePerfectHashTable` is **immutable** after `Create`; Insert and Delete are not available after construction.
 - Both native structures require `AllowUnsafeBlocks=true` in the consuming project.

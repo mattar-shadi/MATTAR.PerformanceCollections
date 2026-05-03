@@ -4,16 +4,16 @@ using BenchmarkDotNet.Attributes;
 namespace MATTAR.PerformanceCollections.Benchmarks;
 
 /// <summary>
-/// Compares <see cref="PerfectHashTable"/> (static FKS hash table, key→value map)
+/// Compares <see cref="UnSafePerfectHashTable"/> (static FKS hash table, key→value map)
 /// against <see cref="Dictionary{TKey,TValue}"/> for read-oriented operations.
 ///
 /// <para>
-/// <see cref="PerfectHashTable"/> is <em>immutable</em> after construction, so
+/// <see cref="UnSafePerfectHashTable"/> is <em>immutable</em> after construction, so
 /// insertion and removal benchmarks are replaced by a construction benchmark that
 /// measures the full build cost (equivalent to populating a dictionary from scratch).
 /// </para>
 ///
-/// Key constraint: PerfectHashTable uses key == 0 as an empty-slot sentinel,
+/// Key constraint: UnSafePerfectHashTable uses key == 0 as an empty-slot sentinel,
 /// so all generated keys start at 1.
 /// </summary>
 [MemoryDiagnoser]
@@ -35,7 +35,7 @@ public unsafe class PerfectVsDictionaryBenchmarks
     private int[] _lookupKeys = null!;
 
     // Pre-built structures for lookup / iteration benchmarks.
-    private PerfectHashTable* _perfect;
+    private UnSafePerfectHashTable* _perfect;
     private Dictionary<int, int> _dictionary = null!;
 
     // -------------------------------------------------------------------------
@@ -64,7 +64,7 @@ public unsafe class PerfectVsDictionaryBenchmarks
         Shuffle(_lookupKeys, new System.Random(99));
 
         // Pre-built structures.
-        _perfect = PerfectHashTable.Create(_keys, _values);
+        _perfect = UnSafePerfectHashTable.Create(_keys, _values);
 
         _dictionary = new Dictionary<int, int>(N);
         for (int i = 0; i < N; i++)
@@ -74,7 +74,7 @@ public unsafe class PerfectVsDictionaryBenchmarks
     [GlobalCleanup]
     public void Cleanup()
     {
-        PerfectHashTable.Destroy(_perfect);
+        UnSafePerfectHashTable.Destroy(_perfect);
         _perfect = null;
     }
 
@@ -96,14 +96,14 @@ public unsafe class PerfectVsDictionaryBenchmarks
     }
 
     /// <summary>
-    /// Measures the full cost of building a PerfectHashTable from N key-value pairs.
+    /// Measures the full cost of building a UnSafePerfectHashTable from N key-value pairs.
     /// </summary>
     [Benchmark]
     [BenchmarkCategory("Build")]
     public void PerfectHashTable_Build()
     {
-        PerfectHashTable* tbl = PerfectHashTable.Create(_keys, _values);
-        PerfectHashTable.Destroy(tbl);
+        UnSafePerfectHashTable* tbl = UnSafePerfectHashTable.Create(_keys, _values);
+        UnSafePerfectHashTable.Destroy(tbl);
     }
 
     // -------------------------------------------------------------------------
@@ -128,7 +128,7 @@ public unsafe class PerfectVsDictionaryBenchmarks
         int sum = 0;
         for (int i = 0; i < N; i++)
         {
-            PerfectHashTable.Entry* e = PerfectHashTable.Find(_perfect, _lookupKeys[i]);
+            UnSafePerfectHashTable.Entry* e = UnSafePerfectHashTable.Find(_perfect, _lookupKeys[i]);
             if (e != null) sum += e->Value;
         }
         return sum;
@@ -154,7 +154,7 @@ public unsafe class PerfectVsDictionaryBenchmarks
     {
         int count = 0;
         for (int i = 0; i < N; i++)
-            if (PerfectHashTable.Find(_perfect, _lookupKeys[i]) != null) count++;
+            if (UnSafePerfectHashTable.Find(_perfect, _lookupKeys[i]) != null) count++;
         return count;
     }
 
@@ -178,16 +178,16 @@ public unsafe class PerfectVsDictionaryBenchmarks
     {
         long sum = 0;
         int tableSize = _perfect->TableSize;
-        PerfectHashTable.Bucket* buckets = _perfect->Buckets;
+        UnSafePerfectHashTable.Bucket* buckets = _perfect->Buckets;
         for (int b = 0; b < tableSize; b++)
         {
-            ref PerfectHashTable.Bucket bucket = ref buckets[b];
+            ref UnSafePerfectHashTable.Bucket bucket = ref buckets[b];
             if (bucket.SubTableSize == 0) continue;
-            PerfectHashTable.Entry* sub = bucket.SubTable;
+            UnSafePerfectHashTable.Entry* sub = bucket.SubTable;
             int subSize = bucket.SubTableSize;
             for (int j = 0; j < subSize; j++)
             {
-                ref PerfectHashTable.Entry e = ref sub[j];
+                ref UnSafePerfectHashTable.Entry e = ref sub[j];
                 if (e.Key != 0) sum += e.Value;
             }
         }

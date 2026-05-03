@@ -9,7 +9,7 @@ public sealed unsafe class PerfectHashTableTests
     [Fact]
     public void Create_EmptyKeys_ReturnsNull()
     {
-        var table = PerfectHashTable.Create([], []);
+        var table = UnSafePerfectHashTable.Create([], []);
         ((nint)table).Should().Be(0);
     }
 
@@ -19,17 +19,17 @@ public sealed unsafe class PerfectHashTableTests
         int[] keys = [42];
         int[] values = [99];
 
-        var table = PerfectHashTable.Create(keys, values);
+        var table = UnSafePerfectHashTable.Create(keys, values);
         try
         {
-            var entry = PerfectHashTable.Find(table, 42);
+            var entry = UnSafePerfectHashTable.Find(table, 42);
             ((nint)entry).Should().NotBe(0);
             entry->Key.Should().Be(42);
             entry->Value.Should().Be(99);
         }
         finally
         {
-            PerfectHashTable.Destroy(table);
+            UnSafePerfectHashTable.Destroy(table);
         }
     }
 
@@ -39,12 +39,12 @@ public sealed unsafe class PerfectHashTableTests
         int[] keys = [1, 2, 3, 5, 8, 13, 21, 34];
         int[] values = [10, 20, 30, 50, 80, 130, 210, 340];
 
-        var table = PerfectHashTable.Create(keys, values);
+        var table = UnSafePerfectHashTable.Create(keys, values);
         try
         {
             for (int i = 0; i < keys.Length; i++)
             {
-                var entry = PerfectHashTable.Find(table, keys[i]);
+                var entry = UnSafePerfectHashTable.Find(table, keys[i]);
                 ((nint)entry).Should().NotBe(0, $"key {keys[i]} should be found");
                 entry->Key.Should().Be(keys[i]);
                 entry->Value.Should().Be(values[i]);
@@ -52,7 +52,7 @@ public sealed unsafe class PerfectHashTableTests
         }
         finally
         {
-            PerfectHashTable.Destroy(table);
+            UnSafePerfectHashTable.Destroy(table);
         }
     }
 
@@ -62,7 +62,7 @@ public sealed unsafe class PerfectHashTableTests
         int[] keys = [1, 2, 3, 2];
         int[] values = [10, 20, 30, 40];
 
-        Action act = () => PerfectHashTable.Create(keys, values);
+        Action act = () => UnSafePerfectHashTable.Create(keys, values);
 
         act.Should().Throw<ArgumentException>()
            .WithMessage("*Duplicate key 2*");
@@ -74,7 +74,7 @@ public sealed unsafe class PerfectHashTableTests
         int[] keys = [5, 5];
         int[] values = [1, 2];
 
-        Action act = () => PerfectHashTable.Create(keys, values);
+        Action act = () => UnSafePerfectHashTable.Create(keys, values);
 
         act.Should().Throw<ArgumentException>()
            .WithMessage("*Duplicate key 5*");
@@ -86,29 +86,29 @@ public sealed unsafe class PerfectHashTableTests
         int[] keys = [10, 20, 30];
         int[] values = [1, 2, 3];
 
-        var table = PerfectHashTable.Create(keys, values);
+        var table = UnSafePerfectHashTable.Create(keys, values);
         try
         {
-            var entry = PerfectHashTable.Find(table, 99);
+            var entry = UnSafePerfectHashTable.Find(table, 99);
             ((nint)entry).Should().Be(0);
         }
         finally
         {
-            PerfectHashTable.Destroy(table);
+            UnSafePerfectHashTable.Destroy(table);
         }
     }
 
     [Fact]
     public void Find_NullTable_ReturnsNull()
     {
-        var entry = PerfectHashTable.Find(null, 1);
+        var entry = UnSafePerfectHashTable.Find(null, 1);
         ((nint)entry).Should().Be(0);
     }
 
     [Fact]
     public void Destroy_NullTable_DoesNotThrow()
     {
-        Action act = () => PerfectHashTable.Destroy(null);
+        Action act = () => UnSafePerfectHashTable.Destroy(null);
         act.Should().NotThrow();
     }
 
@@ -120,19 +120,19 @@ public sealed unsafe class PerfectHashTableTests
         int[] keys = [7];
         int[] values = [77];
 
-        var table = PerfectHashTable.Create(keys, values);
+        var table = UnSafePerfectHashTable.Create(keys, values);
         try
         {
             table->TableSize.Should().Be(1);
             table->HashShift.Should().Be(0);
 
-            var entry = PerfectHashTable.Find(table, 7);
+            var entry = UnSafePerfectHashTable.Find(table, 7);
             ((nint)entry).Should().NotBe(0);
             entry->Value.Should().Be(77);
         }
         finally
         {
-            PerfectHashTable.Destroy(table);
+            UnSafePerfectHashTable.Destroy(table);
         }
     }
 
@@ -142,7 +142,7 @@ public sealed unsafe class PerfectHashTableTests
         int[] keys = [0, 1, 2];
         int[] values = [10, 20, 30];
 
-        Action act = () => PerfectHashTable.Create(keys, values);
+        Action act = () => UnSafePerfectHashTable.Create(keys, values);
 
         act.Should().Throw<ArgumentException>()
            .WithMessage("*Key 0 is reserved*");
@@ -154,7 +154,7 @@ public sealed unsafe class PerfectHashTableTests
         int[] keys = [1, 2, 3];
         int[] values = [10, 20];
 
-        Action act = () => PerfectHashTable.Create(keys, values);
+        Action act = () => UnSafePerfectHashTable.Create(keys, values);
 
         act.Should().Throw<ArgumentException>()
            .WithMessage("*values.Length*");
@@ -172,19 +172,19 @@ public sealed unsafe class PerfectHashTableTests
             values[i] = (i + 1) * 10;
         }
 
-        var table = PerfectHashTable.Create(keys, values);
+        var table = UnSafePerfectHashTable.Create(keys, values);
         try
         {
             for (int i = 0; i < count; i++)
             {
-                var entry = PerfectHashTable.Find(table, keys[i]);
+                var entry = UnSafePerfectHashTable.Find(table, keys[i]);
                 ((nint)entry).Should().NotBe(0, $"key {keys[i]} should be found");
                 entry->Value.Should().Be(values[i]);
             }
         }
         finally
         {
-            PerfectHashTable.Destroy(table);
+            UnSafePerfectHashTable.Destroy(table);
         }
     }
 }

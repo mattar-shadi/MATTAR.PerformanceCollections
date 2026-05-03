@@ -112,7 +112,7 @@ public sealed class PerfectTableTests
     public void CreateStatic_WithHiEqualToZero_Works()
     {
         // universeBits=4, ClusterBits=2 → hi = key>>2
-        // keys 1,2,3 all have hi=0 (stored as hi+1=1 in PerfectHashTable)
+        // keys 1,2,3 all have hi=0 (stored as hi+1=1 in UnSafePerfectHashTable)
         int[] keys = { 1, 2, 3 };
         using var tree = VanEmdeBoas.CreateStatic(keys, universeBits: 4);
 
